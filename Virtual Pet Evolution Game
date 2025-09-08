@@ -1,0 +1,140 @@
+import java.util.*;
+
+// 🎮 Virtual Pet Evolution Simulator
+class VirtualPet {
+    // ----- Fields -----
+    final String petId;  // unique and final
+    String petName;
+    String species;
+    int age;
+    int happiness;
+    int health;
+    int stageIndex;
+
+    static final String[] EVOLUTION_STAGES = {"Egg", "Baby", "Child", "Teen", "Adult", "Elder", "Ghost"};
+    static int totalPetsCreated = 0;
+
+    // ----- Main Constructor (All arguments) -----
+    public VirtualPet(String petName, String species, int age, int happiness, int health, int stageIndex) {
+        this.petId = generatePetId();
+        this.petName = petName;
+        this.species = species;
+        this.age = age;
+        this.happiness = happiness;
+        this.health = health;
+        this.stageIndex = stageIndex;
+        totalPetsCreated++;
+    }
+
+    // ----- Constructor Overloading with this() -----
+    // Default: mysterious Egg
+    public VirtualPet() {
+        this("Unknown", randomSpecies(), 0, 50, 50, 0);
+    }
+
+    // Name only: Baby stage
+    public VirtualPet(String petName) {
+        this(petName, randomSpecies(), 1, 60, 60, 1);
+    }
+
+    // Name + species: Child stage
+    public VirtualPet(String petName, String species) {
+        this(petName, species, 3, 70, 70, 2);
+    }
+
+    // ----- Unique ID generator -----
+    public static String generatePetId() {
+        return "PET-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase();
+    }
+
+    // ----- Random species generator -----
+    private static String randomSpecies() {
+        String[] speciesList = {"Dragon", "Cat", "Dog", "Bird", "Rabbit"};
+        return speciesList[new Random().nextInt(speciesList.length)];
+    }
+
+    // ----- Actions -----
+    public void feedPet() {
+        if (isGhost()) return;
+        happiness += 5;
+        health += 10;
+    }
+
+    public void playWithPet() {
+        if (isGhost()) return;
+        happiness += 10;
+        health -= 2;
+    }
+
+    public void healPet() {
+        if (isGhost()) return;
+        health += 15;
+    }
+
+    // ----- Simulation -----
+    public void simulateDay() {
+        if (isGhost()) return;
+
+        age++;
+        happiness -= new Random().nextInt(5);  // natural decline
+        health -= new Random().nextInt(5);
+
+        if (health <= 0) {
+            stageIndex = 6; // Ghost
+            health = 0;
+            System.out.println(petName + " has died and become a Ghost! 👻");
+        } else {
+            evolvePet();
+        }
+    }
+
+    // ----- Evolution -----
+    public void evolvePet() {
+        if (isGhost()) return;
+
+        // Evolve based on age
+        if (age >= 0 && age < 1) stageIndex = 0;
+        else if (age < 3) stageIndex = 1;
+        else if (age < 6) stageIndex = 2;
+        else if (age < 10) stageIndex = 3;
+        else if (age < 15) stageIndex = 4;
+        else stageIndex = 5;
+    }
+
+    // ----- Status -----
+    public String getPetStatus() {
+        return String.format("[%s] %s (%s) - Age: %d | Happiness: %d | Health: %d | Stage: %s",
+                petId, petName, species, age, happiness, health, EVOLUTION_STAGES[stageIndex]);
+    }
+
+    // ----- Helper -----
+    private boolean isGhost() {
+        return stageIndex == 6;
+    }
+}
+
+// 🎮 Main Class
+public class VirtualPetSimulator {
+    public static void main(String[] args) {
+        List<VirtualPet> daycare = new ArrayList<>();
+
+        // Create pets with different constructors
+        daycare.add(new VirtualPet()); // mysterious egg
+        daycare.add(new VirtualPet("Buddy")); // baby
+        daycare.add(new VirtualPet("Luna", "Dragon")); // child
+        daycare.add(new VirtualPet("Max", "Cat", 8, 80, 90, 3)); // custom
+
+        // Simulate multiple days
+        for (int day = 1; day <= 7; day++) {
+            System.out.println("\n--- Day " + day + " ---");
+            for (VirtualPet pet : daycare) {
+                pet.simulateDay();
+                pet.feedPet();
+                pet.playWithPet();
+                System.out.println(pet.getPetStatus());
+            }
+        }
+
+        System.out.println("\nTotal pets created: " + VirtualPet.totalPetsCreated);
+    }
+}
