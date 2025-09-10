@@ -1,0 +1,358 @@
+
+import java.util.Arrays;
+import java.util.Objects;
+
+/**
+ * Immutable PetSpecies class.
+ */
+public final class PetSpecies {
+    private final String speciesName;
+    private final String[] evolutionStages;
+    private final int maxLifespan;
+    private final String habitat;
+
+    public PetSpecies(String speciesName, String[] evolutionStages, int maxLifespan, String habitat) {
+        if (speciesName == null || speciesName.isBlank())
+            throw new IllegalArgumentException("Invalid species name");
+        if (evolutionStages == null || evolutionStages.length == 0)
+            throw new IllegalArgumentException("Evolution stages cannot be null or empty");
+        if (maxLifespan <= 0)
+            throw new IllegalArgumentException("maxLifespan must be > 0");
+        if (habitat == null || habitat.isBlank())
+            throw new IllegalArgumentException("Invalid habitat");
+
+        this.speciesName = speciesName;
+        this.evolutionStages = evolutionStages.clone(); // defensive copy
+        this.maxLifespan = maxLifespan;
+        this.habitat = habitat;
+    }
+
+    public String getSpeciesName() { return speciesName; }
+    public String[] getEvolutionStages() { return evolutionStages.clone(); }
+    public int getMaxLifespan() { return maxLifespan; }
+    public String getHabitat() { return habitat; }
+
+    public String toString() {
+        return "PetSpecies{" +
+                "speciesName='" + speciesName + '\'' +
+                ", evolutionStages=" + Arrays.toString(evolutionStages) +
+                ", maxLifespan=" + maxLifespan +
+                ", habitat='" + habitat + '\'' +
+                '}';
+    }
+
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof PetSpecies)) return false;
+        PetSpecies that = (PetSpecies) o;
+        return maxLifespan == that.maxLifespan &&
+                speciesName.equals(that.speciesName) &&
+                Arrays.equals(evolutionStages, that.evolutionStages) &&
+                habitat.equals(that.habitat);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(speciesName, maxLifespan, habitat);
+        result = 31 * result + Arrays.hashCode(evolutionStages);
+        return result;
+    }
+}
+
+
+// File: VirtualPet.java
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.UUID;
+
+public class VirtualPet {
+    // private immutable core
+    private final String petId;
+    private final PetSpecies species;
+    private final long birthTimestamp;
+
+    // private mutable state
+    private String petName;
+    private int age;
+    private int happiness;
+    private int health;
+
+    // protected package-accessible defaults
+    protected static final String[] DEFAULT_EVOLUTION_STAGES = {"Egg", "Child", "Teen", "Adult", "Elder"};
+
+    // package-private constants
+    static final int MAX_HAPPINESS = 100;
+    static final int MAX_HEALTH = 100;
+
+    // public global access
+    public static final String PET_SYSTEM_VERSION = "2.0";
+
+    // Default constructor - random pet with default species and moderate stats
+    public VirtualPet() {
+        this("Unknown", new PetSpecies("Default", DEFAULT_EVOLUTION_STAGES, 20, "Forest"), 0, 50, 50);
+    }
+
+    // Name-only constructor
+    public VirtualPet(String petName) {
+        this(petName, new PetSpecies("Default", DEFAULT_EVOLUTION_STAGES, 20, "Forest"), 0, 50, 50);
+    }
+
+    // Name + species
+    public VirtualPet(String petName, PetSpecies species) {
+        this(petName, species, 0, 50, 50);
+    }
+
+    // Main constructor
+    public VirtualPet(String petName, PetSpecies species, int age, int happiness, int health) {
+        if (species == null) throw new IllegalArgumentException("species cannot be null");
+
+        this.petId = generatePetId();
+        this.birthTimestamp = System.currentTimeMillis();
+        this.species = species;
+
+        setPetName(petName);
+        setAge(age);
+        setHappiness(happiness);
+        setHealth(health);
+    }
+
+    // JavaBean getters/setters
+    public String getPetId() { return petId; }
+    public PetSpecies getSpecies() { return species; }
+    public long getBirthTimestamp() { return birthTimestamp; }
+
+    public String getPetName() { return petName; }
+    public void setPetName(String petName) { this.petName = (petName == null || petName.isBlank()) ? "Unknown" : petName; }
+
+    public int getAge() { return age; }
+    public void setAge(int age) { this.age = Math.max(0, age); }
+
+    public int getHappiness() { return happiness; }
+    public void setHappiness(int happiness) { this.happiness = validateStat(happiness); }
+
+    public int getHealth() { return health; }
+    public void setHealth(int health) { this.health = validateStat(health); }
+
+    // Public API methods
+    public void feedPet(String foodType) {
+        int bonus = calculateFoodBonus(foodType);
+        modifyHealth(bonus);
+        // feeding might also slightly affect happiness
+        modifyHappiness(bonus / 2);
+    }
+
+    public void playWithPet(String gameType) {
+        int effect = calculateGameEffect(gameType);
+        modifyHappiness(effect);
+        // playing costs some health/stamina
+        modifyHealth(-Math.max(1, effect / 4));
+    }
+
+    // Protected internal calculations
+    protected int calculateFoodBonus(String foodType) {
+        if (foodType == null) return 5;
+        switch (foodType.toLowerCase()) {
+            case "fruit": return 12;
+            case "meat": return 15;
+            case "treat": return 8;
+            default: return 5;
+        }
+    }
+
+    protected int calculateGameEffect(String gameType) {
+        if (gameType == null) return 7;
+        switch (gameType.toLowerCase()) {
+            case "fetch": return 18;
+            case "tag": return 12;
+            case "puzzle": return 10;
+            default: return 7;
+        }
+    }
+
+    // Private internal logic
+    private void modifyHappiness(int delta) {
+        this.happiness = validateStat(this.happiness + delta);
+        updateEvolutionStage();
+    }
+
+    private void modifyHealth(int delta) {
+        this.health = validateStat(this.health + delta);
+    }
+
+    private void updateEvolutionStage() {
+        // Simple rule: evolve when age crosses thresholds or combined stats high
+        String[] stages = species.getEvolutionStages();
+        int stageCount = stages.length;
+        int combined = (happiness + health) / 2;
+        int index;
+        if (combined > 85) index = Math.min(stageCount - 1, 4);
+        else if (combined > 70) index = Math.min(stageCount - 1, 3);
+        else if (combined > 50) index = Math.min(stageCount - 1, 2);
+        else if (combined > 25) index = Math.min(stageCount - 1, 1);
+        else index = 0;
+        // For demonstration we do nothing but could store current stage if needed
+    }
+
+    // Package-private debug method
+    String getInternalState() {
+        return "VirtualPet{" +
+                "petId='" + petId + '\'' +
+                ", name='" + petName + '\'' +
+                ", species='" + species.getSpeciesName() + '\'' +
+                ", age=" + age +
+                ", happiness=" + happiness +
+                ", health=" + health +
+                '}';
+    }
+
+    // Helpers
+    private int validateStat(int value) {
+        if (value < 0) return 0;
+        if (value > MAX_HAPPINESS) return MAX_HAPPINESS; // same cap used for both stats
+        return value;
+    }
+
+    private static String generatePetId() {
+        return "PET-" + UUID.randomUUID().toString();
+    }
+
+    public String toString() {
+        return "VirtualPet{" +
+                "petId='" + petId + '\'' +
+                ", petName='" + petName + '\'' +
+                ", species='" + species.getSpeciesName() + '\'' +
+                ", age=" + age +
+                ", happiness=" + happiness +
+                ", health=" + health +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof VirtualPet)) return false;
+        VirtualPet that = (VirtualPet) o;
+        return birthTimestamp == that.birthTimestamp &&
+                petId.equals(that.petId) &&
+                species.equals(that.species);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(petId, species, birthTimestamp);
+    }
+}
+
+
+// File: DragonPet.java
+
+public class DragonPet {
+    private final String dragonType;
+    private final String breathWeapon;
+    private final VirtualPet pet; // composition
+
+    public DragonPet(String dragonType, String breathWeapon, VirtualPet pet) {
+        if (dragonType == null || dragonType.isBlank()) throw new IllegalArgumentException("dragonType required");
+        if (breathWeapon == null || breathWeapon.isBlank()) throw new IllegalArgumentException("breathWeapon required");
+        if (pet == null) throw new IllegalArgumentException("Underlying VirtualPet required");
+        this.dragonType = dragonType;
+        this.breathWeapon = breathWeapon;
+        this.pet = pet;
+    }
+
+    public String getDragonType() { return dragonType; }
+    public String getBreathWeapon() { return breathWeapon; }
+    public VirtualPet getPet() { return pet; }
+
+    // Example helper that uses pet functionality
+    public void feedDragon(String food) {
+        pet.feedPet(food);
+        // dragons love "meat" specifically
+        if ("meat".equalsIgnoreCase(food)) {
+            // secret boost: pretend to breathe fire -> extra happiness
+            // we access protected method via delegation pattern is not possible, so use public API
+            pet.playWithPet("fetch");
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "DragonPet{" +
+                "dragonType='" + dragonType + '\'' +
+                ", breathWeapon='" + breathWeapon + '\'' +
+                ", pet=" + pet.getPetName() +
+                '}';
+    }
+}
+
+
+// File: RobotPet.java
+
+public class RobotPet {
+    private boolean needsCharging;
+    private int batteryLevel; // 0 - 100
+    private final VirtualPet pet; // composition
+
+    public RobotPet(VirtualPet pet) {
+        if (pet == null) throw new IllegalArgumentException("VirtualPet required");
+        this.pet = pet;
+        this.batteryLevel = 100;
+        this.needsCharging = false;
+    }
+
+    public boolean isNeedsCharging() { return needsCharging; }
+    public int getBatteryLevel() { return batteryLevel; }
+
+    public void drainBattery(int amount) {
+        if (amount < 0) return;
+        batteryLevel = Math.max(0, batteryLevel - amount);
+        needsCharging = (batteryLevel == 0);
+        // lower battery affects happiness
+        if (batteryLevel < 20) pet.setHappiness(pet.getHappiness() - 10);
+    }
+
+    public void recharge() {
+        batteryLevel = 100;
+        needsCharging = false;
+        pet.setHappiness(pet.getHappiness() + 5);
+    }
+
+    public VirtualPet getPet() { return pet; }
+
+    @Override
+    public String toString() {
+        return "RobotPet{" +
+                "batteryLevel=" + batteryLevel +
+                ", needsCharging=" + needsCharging +
+                ", pet=" + pet.getPetName() +
+                '}';
+    }
+}
+
+
+// File: Main.java
+
+public class Main {
+    public static void main(String[] args) {
+        PetSpecies dragonSpecies = new PetSpecies("Dragon", new String[]{"Hatchling","Wyrmling","Drake","Elder Drake"}, 200, "Mountains");
+        VirtualPet drago = new VirtualPet("Drago", dragonSpecies, 1, 60, 80);
+        DragonPet dragonPet = new DragonPet("Fire","Flame", drago);
+
+        System.out.println("=== Dragon Demo ===");
+        System.out.println(dragonPet);
+        dragonPet.feedDragon("meat");
+        System.out.println(drago.getInternalState());
+
+        VirtualPet roboPetBase = new VirtualPet("Robo", new PetSpecies("Robot", new String[]{"Unit","Mk1","Mk2"}, 50, "Lab"), 0, 70, 70);
+        RobotPet robo = new RobotPet(roboPetBase);
+
+        System.out.println("\n=== Robot Demo ===");
+        System.out.println(robo);
+        robo.drainBattery(85);
+        System.out.println(robo.getPet().getInternalState());
+        robo.recharge();
+        System.out.println(robo.getPet().getInternalState());
+
+        System.out.println("\nSystem version: " + VirtualPet.PET_SYSTEM_VERSION);
+    }
+}
